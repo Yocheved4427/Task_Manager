@@ -3,7 +3,7 @@
 
 // ── State ────────────────────────────────────────────────────────
 let tasks          = [];
-let currentFilter  = 'all';
+let currentFilter  = 'pending';
 let editingTaskId  = null;
 let pendingRemoveImage = false;
 
