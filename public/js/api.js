@@ -11,7 +11,7 @@ const API = (() => {
   async function handleResponse(res) {
     if (!res.ok) {
       let msg = `Server error ${res.status}`;
-      try { const body = await res.json(); msg = body.error || msg; } catch {}
+      try { const body = await res.json(); msg = body.detail || body.error || msg; } catch {}
       throw new Error(msg);
     }
     return res.json();
