@@ -4,7 +4,7 @@
    click events.
    ================================================================ */
 
-const CACHE_NAME    = 'task-manager-v4';
+const CACHE_NAME    = 'task-manager-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
