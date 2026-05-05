@@ -583,6 +583,11 @@ async function init() {
     });
   });
 
+  // Set initial active tab to match currentFilter
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  const defaultTab = document.querySelector(`.filter-tab[data-filter="${currentFilter}"]`);
+  if (defaultTab) defaultTab.classList.add('active');
+
   // Close modals on overlay click
   document.getElementById('task-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeTaskModal();
