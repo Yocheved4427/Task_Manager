@@ -1,6 +1,8 @@
 /* global API, Notification */
 'use strict';
 
+console.log('app.js version: 3 — default filter: pending');
+
 // ── State ────────────────────────────────────────────────────────
 let tasks          = [];
 let currentFilter  = 'pending';
