@@ -4,10 +4,8 @@
    click events.
    ================================================================ */
 
-const CACHE_NAME    = 'task-manager-v5';
+const CACHE_NAME    = 'task-manager-v6';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/css/styles.css?v=2',
   '/js/api.js',
@@ -38,6 +36,12 @@ self.addEventListener('activate', event => {
 // ── Fetch: network-first for API, cache-first for assets ─────────
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  // Always go to network for HTML so the entry point is always fresh
+  if (url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // Always go to network for API and image uploads
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
