@@ -4,7 +4,7 @@
    click events.
    ================================================================ */
 
-const CACHE_NAME    = 'task-manager-v6';
+const CACHE_NAME    = 'task-manager-v7';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/css/styles.css?v=2',
@@ -60,6 +60,25 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
   );
+});
+
+// ── Push: receive server-sent notification and show it ───────────────────────
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch {}
+  const title   = data.title  || '⏰ Task Due';
+  const options = {
+    body:               data.body   || 'A task is due now!',
+    icon:               '/icons/icon.svg',
+    tag:                data.tag    || 'task-due',
+    requireInteraction: true,
+    data:               { taskId: data.taskId },
+    actions: [
+      { action: 'done',      title: '✓ Done'      },
+      { action: 'try-later', title: '⏰ Try Later' }
+    ]
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // ── Notification click: handle actions or open/focus the app ────────

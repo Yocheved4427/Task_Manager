@@ -49,7 +49,26 @@ function showToast(message, type = 'info') {
   }, 3500);
 }
 
-// ── Browser Notifications ────────────────────────────────────────
+// ── Browser Notifications + Web Push ────────────────────────────────
+async function subscribeToPush(reg) {
+  try {
+    const res     = await fetch('/api/push/vapid-key');
+    const { publicKey } = await res.json();
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly:      true,
+      applicationServerKey: publicKey
+    });
+    await fetch('/api/push/subscribe', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(sub)
+    });
+    console.log('Web Push subscribed.');
+  } catch (err) {
+    console.warn('Web Push subscribe failed:', err);
+  }
+}
+
 async function requestNotificationPermission() {
   if (!('Notification' in window)) {
     showToast('Notifications not supported in this browser', 'warning');
@@ -59,6 +78,11 @@ async function requestNotificationPermission() {
   if (perm === 'granted') {
     showToast('Desktop notifications enabled!', 'success');
     document.getElementById('notif-btn').hidden = true;
+    // Subscribe to Web Push so notifications work when tab is closed
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      await subscribeToPush(reg);
+    }
     startNotificationPoller();
   } else {
     showToast('Notification permission denied', 'error');
@@ -617,6 +641,10 @@ async function init() {
   if (Notification.permission === 'granted') {
     document.getElementById('notif-btn').hidden = true;
     startNotificationPoller();
+    // Re-subscribe to Web Push in case it was lost
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => subscribeToPush(reg)).catch(() => {});
+    }
   }
 
   // Handle ?action=new shortcut (from PWA shortcuts)
