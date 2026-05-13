@@ -1,5 +1,5 @@
 node_modules/
-firebase-key.json
+fire_base.json
 public/uploads/
 data/
 migrate-to-firebase.js
