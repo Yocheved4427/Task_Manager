@@ -4,6 +4,7 @@ require('dotenv').config();
 const express    = require('express');
 const path       = require('path');
 const fs         = require('fs');
+const { execFile } = require('child_process');
 const multer     = require('multer');
 const schedule   = require('node-schedule');
 const webpush    = require('web-push');
@@ -29,7 +30,11 @@ const subsCol  = db.collection('subscriptions');
 // ─── Web Push (VAPID) ────────────────────────────────────────────────────────
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE;
-webpush.setVapidDetails('mailto:admin@taskmanager.app', VAPID_PUBLIC, VAPID_PRIVATE);
+if (VAPID_PUBLIC && VAPID_PRIVATE) {
+  webpush.setVapidDetails('mailto:admin@taskmanager.app', VAPID_PUBLIC, VAPID_PRIVATE);
+} else {
+  console.warn('VAPID keys not set – push notifications disabled.');
+}
 
 // ─── Directories ─────────────────────────────────────────────────────────────
 const ICONS_DIR   = path.join(__dirname, 'public', 'icons');
@@ -96,6 +101,20 @@ async function getTask(id) {
   return doc.exists ? doc.data() : null;
 }
 
+// ─── Windows native toast notification ──────────────────────────────────────
+function sendWindowsToast(task) {
+  const title = `⏰ Task Due: ${task.title}`;
+  const body  = task.description || 'This task is due now!';
+  // Escape single quotes for PowerShell
+  const safeTitle = title.replace(/'/g, "''");
+  const safeBody  = body.replace(/'/g, "''");
+  const ps = `Import-Module BurntToast -ErrorAction SilentlyContinue; ` +
+             `New-BurntToastNotification -Text '${safeTitle}','${safeBody}' -AppLogo ''`;
+  execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], err => {
+    if (err) console.warn('Windows toast error:', err.message);
+  });
+}
+
 // ─── Web Push notifications ─────────────────────────────────────────────────
 async function sendWebPushToAll(task) {
   let snap;
@@ -132,6 +151,7 @@ function cancelTaskSchedule(taskId) {
 function startOverdueInterval(task) {
   if (overdueIntervals[task.id]) return;
   sendWebPushToAll(task);
+  sendWindowsToast(task);
   overdueIntervals[task.id] = setInterval(async () => {
     try {
       const current = await getTask(task.id);
@@ -141,6 +161,7 @@ function startOverdueInterval(task) {
         return;
       }
       sendWebPushToAll(current);
+      sendWindowsToast(current);
     } catch (err) {
       console.warn('Overdue interval error:', err.message);
     }
@@ -160,7 +181,10 @@ function scheduleTask(task) {
     scheduledJobs[task.id] = schedule.scheduleJob(dueDate, async () => {
       try {
         const current = await getTask(task.id);
-        if (current && current.status !== 'done') startOverdueInterval(current);
+        if (current && current.status !== 'done') {
+          startOverdueInterval(current);
+          sendWindowsToast(current);
+        }
       } catch (err) {
         console.warn('Schedule job error:', err.message);
       }
@@ -187,7 +211,7 @@ app.post('/api/push/subscribe', async (req, res) => {
   const sub = req.body;
   if (!sub || !sub.endpoint) return res.status(400).json({ error: 'Invalid subscription' });
   try {
-    const id = Buffer.from(sub.endpoint).toString('base64').slice(0, 64);
+    const id = Buffer.from(sub.endpoint).toString('base64url').slice(0, 64);
     await subsCol.doc(id).set(sub);
     res.json({ ok: true });
   } catch (err) {
